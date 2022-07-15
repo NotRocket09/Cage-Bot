@@ -5,7 +5,8 @@ from bs4 import BeautifulSoup
 from urllib.request import urlopen
 from random import randrange
 import asyncio
-
+from private.config import Token
+from copy import copy
 
 def find_tags(tag : BeautifulSoup):
     return tag.has_attr("data-id") and tag.has_attr("id")
@@ -30,10 +31,6 @@ def Get_Slurs():
                 slur.Race = out
             elif index == 2:
                 slur.Reason = out
-            #try:
-                #print(out)
-            #except:
-                #break
             index += 1
         slurlist.append(slur)
     return slurlist
@@ -65,6 +62,7 @@ class Client(discord.Client):
         intents = discord.Intents.all()
         super().__init__(intents=intents)
         self.Hentais_ID = 500171309641236480
+        self.lock = asyncio.Lock()
     
     async def on_ready(self):
         print("We have logged in as {0}".format(self.user))
@@ -101,6 +99,20 @@ class Client(discord.Client):
             string = slurlist[rand].__str__()
             await channel.send(string)
             await self.SetDurgunName(self.GetNigSlurs()[rand])
+        elif message.content == "$checktime":
+            channel = message.channel
+            counter = 0
+            async with self.lock:
+                counter = copy(self.counter)
+            await channel.send(str(counter) + " seconds")
+        elif message.content.startswith("$settime"):
+            channel = message.channel
+            lenth = len("$settime ")
+            coppy = 0
+            async with self.lock:
+                self.timercounter = int(message.content[lenth:])
+                coppy = copy(self.timercounter)
+            await channel.send("Timer set to " + str(coppy) + " seconds")
     def GetBlackSlurs(self) -> list:
         black = []
         for slur in Get_Slurs():
@@ -132,8 +144,15 @@ class Client(discord.Client):
 
     async def Timer(self):
         slurs = self.GetNigSlurs()
-        while(True):
-            await asyncio.sleep(300)
+        self.timercounter = 43200
+        while True:
+            self.counter = 0
+            while True:
+                await asyncio.sleep(1)
+                async with self.lock:
+                    self.counter += 1
+                    if self.counter >= self.timercounter:
+                        break
             rand = randrange(len(slurs))
             await self.SetDurgunName(slurs[rand])
             channel = self.get_channel(797367069070983189)
@@ -144,10 +163,9 @@ class Client(discord.Client):
             else:
                 slurs = self.GetNigSlurs()
 
-#TODO Add lock
 
 def main():
     client = Client()
-    client.run("OTk2NTQ3NjczOTUzOTM5NTU4.GanHrU.4daixHfuO-nc2Ji87CERfgTg2yC4lrlYmALesc")
+    client.run(Token)
 if __name__ == "__main__":
     main()
